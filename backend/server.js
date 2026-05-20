@@ -1,6 +1,7 @@
 import express from 'express';
 import dotenv from 'dotenv';
 import cors from 'cors';
+import mongoose from 'mongoose';
 
 import connectDB from './config/db.js';
 
@@ -60,6 +61,20 @@ app.use('/api/emails', emailRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/email-configs', emailConfigRoutes);
+
+// DB Status Diagnostic Route
+app.get('/api/db-status', (req, res) => {
+  const states = {
+    0: 'disconnected',
+    1: 'connected',
+    2: 'connecting',
+    3: 'disconnecting'
+  };
+  res.json({
+    readyState: mongoose.connection.readyState,
+    status: states[mongoose.connection.readyState] || 'unknown'
+  });
+});
 
 import path from 'path';
 import { fileURLToPath } from 'url';
