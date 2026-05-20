@@ -61,10 +61,37 @@ app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/email-configs', emailConfigRoutes);
 
-// Test Route
-app.get('/', (req, res) => {
-  res.send('Backend Running Successfully');
-});
+import path from 'path';
+import { fileURLToPath } from 'url';
+import fs from 'fs';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Serve static assets in production or if the public folder exists
+const publicPath = path.join(__dirname, 'public');
+if (fs.existsSync(publicPath)) {
+  app.use(express.static(publicPath));
+  
+  // All other GET routes should serve the index.html for SPA routing (excluding API routes)
+  app.get('*', (req, res, next) => {
+    // If it's an API route that wasn't matched, don't serve index.html
+    if (req.path.startsWith('/api')) {
+      return next();
+    }
+    const indexFile = path.join(publicPath, 'index.html');
+    if (fs.existsSync(indexFile)) {
+      res.sendFile(indexFile);
+    } else {
+      next();
+    }
+  });
+} else {
+  // Test Route when public folder is not present (e.g. in local development)
+  app.get('/', (req, res) => {
+    res.send('Backend Running Successfully');
+  });
+}
 
 const PORT = process.env.PORT || 5000;
 
