@@ -74,7 +74,7 @@ if (fs.existsSync(publicPath)) {
   app.use(express.static(publicPath));
   
   // All other GET routes should serve the index.html for SPA routing (excluding API routes)
-  app.get('(.*)', (req, res, next) => {
+  app.get(/.*/, (req, res, next) => {
     // If it's an API route that wasn't matched, don't serve index.html
     if (req.path.startsWith('/api')) {
       return next();
