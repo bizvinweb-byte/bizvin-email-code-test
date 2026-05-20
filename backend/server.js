@@ -1,4 +1,8 @@
 // Capture the port assigned dynamically by the hosting environment (Passenger/Hostinger) before loading dotenv
+console.log('--- STARTUP ENV DIAGNOSTIC ---');
+console.log('Initial process.env.PORT:', process.env.PORT);
+console.log('All process.env keys:', Object.keys(process.env));
+console.log('------------------------------');
 const HOSTING_PORT = process.env.PORT;
 
 import express from 'express';
