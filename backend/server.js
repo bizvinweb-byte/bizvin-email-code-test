@@ -1,3 +1,6 @@
+// Capture the port assigned dynamically by the hosting environment (Passenger/Hostinger) before loading dotenv
+const HOSTING_PORT = process.env.PORT;
+
 import express from 'express';
 import dotenv from 'dotenv';
 import cors from 'cors';
@@ -14,6 +17,11 @@ import analyticsRoutes from './routes/analyticsRoutes.js';
 import emailConfigRoutes from './routes/emailConfigRoutes.js';
 
 dotenv.config();
+
+// Restore hosting port if it was overwritten by .env
+if (HOSTING_PORT) {
+  process.env.PORT = HOSTING_PORT;
+}
 
 // Connect DB
 connectDB();
@@ -70,9 +78,21 @@ app.get('/api/db-status', (req, res) => {
     2: 'connecting',
     3: 'disconnecting'
   };
+  
+  const dbUriRaw = process.env.MONGODB_URI;
+  const isUriPresent = !!dbUriRaw;
+  const dbUriMasked = isUriPresent 
+    ? `${dbUriRaw.substring(0, 15)}... (${dbUriRaw.length} chars)`
+    : 'undefined';
+
   res.json({
     readyState: mongoose.connection.readyState,
-    status: states[mongoose.connection.readyState] || 'unknown'
+    status: states[mongoose.connection.readyState] || 'unknown',
+    isUriPresent,
+    dbUriMasked,
+    envKeysAvailable: Object.keys(process.env).filter(k => k !== 'MONGODB_URI' && k !== 'JWT_SECRET'),
+    hasJwtSecret: !!process.env.JWT_SECRET,
+    nodeVersion: process.version
   });
 });
 
