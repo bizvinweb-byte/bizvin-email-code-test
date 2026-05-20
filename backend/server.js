@@ -1,9 +1,11 @@
-// Capture the port assigned dynamically by the hosting environment (Passenger/Hostinger) before loading dotenv
+// Capture the port and socket assigned dynamically by the hosting environment (Passenger/Hostinger/LiteSpeed) before loading dotenv
 console.log('--- STARTUP ENV DIAGNOSTIC ---');
 console.log('Initial process.env.PORT:', process.env.PORT);
+console.log('Initial process.env.LSNODE_SOCKET:', process.env.LSNODE_SOCKET);
 console.log('All process.env keys:', Object.keys(process.env));
 console.log('------------------------------');
 const HOSTING_PORT = process.env.PORT;
+const HOSTING_SOCKET = process.env.LSNODE_SOCKET;
 
 import express from 'express';
 import dotenv from 'dotenv';
@@ -22,9 +24,12 @@ import emailConfigRoutes from './routes/emailConfigRoutes.js';
 
 dotenv.config();
 
-// Restore hosting port if it was overwritten by .env
+// Restore hosting port and socket if they were overwritten by .env
 if (HOSTING_PORT) {
   process.env.PORT = HOSTING_PORT;
+}
+if (HOSTING_SOCKET) {
+  process.env.LSNODE_SOCKET = HOSTING_SOCKET;
 }
 
 // Connect DB
@@ -132,10 +137,12 @@ if (fs.existsSync(publicPath)) {
   });
 }
 
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.LSNODE_SOCKET || process.env.PORT || 5000;
 
 app.listen(PORT, () => {
   console.log(
-    `Server running in ${process.env.NODE_ENV || 'development'} mode on port ${PORT}`
+    `Server running in ${process.env.NODE_ENV || 'development'} mode on ${
+      process.env.LSNODE_SOCKET ? 'socket ' + PORT : 'port ' + PORT
+    }`
   );
 });
