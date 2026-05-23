@@ -44,7 +44,7 @@ export const processCampaignEmails = async (campaignData) => {
 
             // Ensure disclaimer is handled if it exists in the template or needs to be added
             if (disclaimer && !baseHtml.includes('##disclaimer##')) {
-                baseHtml += `<br/><hr/><small>${disclaimer}</small>`;
+                baseHtml += `<br/><hr/><div style="text-align: center; font-family: Helvetica, Arial, sans-serif; font-size: 12px; color: #666666; margin: 15px 0; line-height: 1.5;">${disclaimer}</div>`;
             } else if (disclaimer) {
                 baseHtml = baseHtml.replace('##disclaimer##', disclaimer);
             }
@@ -62,7 +62,10 @@ export const processCampaignEmails = async (campaignData) => {
               <a href="${imageLink}" target="_blank">
                  <img src="${fileUrl}" alt="Marketing Campaign" style="max-width: 100%; height: auto;" />
               </a>
-              <br/><hr/><small>${disclaimer || ''}</small>
+              <br/><hr/>
+              <div style="text-align: center; font-family: Helvetica, Arial, sans-serif; font-size: 12px; color: #666666; margin: 15px auto; line-height: 1.5; display: block;">
+                ${disclaimer || ''}
+              </div>
             </div>
         `;
     } else if (type === 'ZIP') {
@@ -76,16 +79,36 @@ export const processCampaignEmails = async (campaignData) => {
             let imagesInZip = [];
             let otherFiles = [];
 
-            // 1. Sort files into categories
+            // 1. Prioritize index.html, then fallback to any other .html file
+            let htmlEntry = zipEntries.find(entry => 
+                !entry.isDirectory && 
+                !entry.entryName.includes('__MACOSX') && 
+                !entry.name.startsWith('._') && 
+                entry.name.toLowerCase() === 'index.html'
+            );
+            
+            if (!htmlEntry) {
+                htmlEntry = zipEntries.find(entry => 
+                    !entry.isDirectory && 
+                    !entry.entryName.includes('__MACOSX') && 
+                    !entry.name.startsWith('._') && 
+                    entry.name.toLowerCase().endsWith('.html')
+                );
+            }
+            
+            if (htmlEntry) {
+                htmlContent = htmlEntry.getData().toString('utf8');
+            }
+
+            // 2. Sort other files into categories, ignoring OS/macOS metadata
             zipEntries.forEach((entry) => {
-                if (entry.isDirectory || entry.entryName.startsWith('__MACOSX/')) return;
+                if (entry.isDirectory || entry.entryName.includes('__MACOSX') || entry.name.startsWith('._')) return;
+                if (entry.entryName === htmlEntry?.entryName) return;
 
                 const ext = entry.name.split('.').pop()?.toLowerCase();
-                if (ext === 'html' && !htmlContent) {
-                    htmlContent = entry.getData().toString('utf8');
-                } else if (['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(ext)) {
+                if (['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(ext)) {
                     imagesInZip.push(entry);
-                } else {
+                } else if (ext !== 'html') {
                     otherFiles.push(entry);
                 }
             });
@@ -97,8 +120,8 @@ export const processCampaignEmails = async (campaignData) => {
                 // Basic replacement for local images if they exist in the ZIP
                 imagesInZip.forEach(img => {
                     const cid = `img_${img.name.replace(/[^a-zA-Z0-9]/g, '_')}`;
-                    // Replace standard src="imgname.ext" or src="./imgname.ext" with cid:imgname.ext
-                    const regex = new RegExp(`src=["'](\\./)?${img.name}["']`, 'gi');
+                    // Replace standard src="images/imgname.ext" or src="./images/imgname.ext" with cid:imgname.ext
+                    const regex = new RegExp(`src\\s*=\\s*["'](?:\\./|\\\\./)?(?:[^"']*[\\/\\\\])?${img.name}["']`, 'gi');
                     if (baseHtml.match(regex)) {
                         baseHtml = baseHtml.replace(regex, `src="cid:${cid}"`);
                         emailAttachments.push({
@@ -117,7 +140,7 @@ export const processCampaignEmails = async (campaignData) => {
                 
                 // Add tracking pixel and disclaimer at the bottom if not present
                 if (!baseHtml.includes('{{OPEN_TRACKING_PIXEL}}')) baseHtml += '\n{{OPEN_TRACKING_PIXEL}}';
-                if (disclaimer) baseHtml += `<br/><hr/><small>${disclaimer}</small>`;
+                if (disclaimer) baseHtml += `<br/><hr/><div style="text-align: center; font-family: Helvetica, Arial, sans-serif; font-size: 12px; color: #666666; margin: 15px 0; line-height: 1.5;">${disclaimer}</div>`;
                 
             } else if (imagesInZip.length > 0) {
                 // Gallery Mode: Show all images in a sequence
@@ -135,7 +158,7 @@ export const processCampaignEmails = async (campaignData) => {
                         cid: cid
                     });
                 });
-                baseHtml += `<br/><small>${disclaimer || ''}</small>{{OPEN_TRACKING_PIXEL}}</div>`;
+                baseHtml += `<br/><hr/><div style="text-align: center; font-family: Helvetica, Arial, sans-serif; font-size: 12px; color: #666666; margin: 15px auto; line-height: 1.5; display: block;">${disclaimer || ''}</div>{{OPEN_TRACKING_PIXEL}}</div>`;
             } else {
                 // Fallback Mode: Just list files
                 baseHtml = `
@@ -146,7 +169,9 @@ export const processCampaignEmails = async (campaignData) => {
                             ${zipEntries.filter(e => !e.isDirectory).map(e => `<li>${e.name}</li>`).join('')}
                         </ul>
                         <hr/>
-                        <small>${disclaimer || ''}</small>
+                        <div style="text-align: center; font-family: Helvetica, Arial, sans-serif; font-size: 12px; color: #666666; margin: 15px auto; line-height: 1.5; display: block;">
+                            ${disclaimer || ''}
+                        </div>
                         {{OPEN_TRACKING_PIXEL}}
                     </div>
                 `;
